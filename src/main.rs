@@ -6,9 +6,7 @@ mod helper;
 
 use poise::serenity_prelude as serenity;
 use sqlite::Connection;
-use std::{
-    collections::HashMap, env::var, path::PathBuf, str::FromStr, sync::{Arc, Mutex}, time::Duration
-};
+use std::{path::PathBuf, str::FromStr, sync::{Arc, Mutex}, time::Duration};
 
 use crate::db_helper::open_database;
 
@@ -100,8 +98,10 @@ async fn main() {
             Box::pin(async move {
                 println!("Logged in as {}", _ready.user.name);
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                let database = Mutex::new(open_database(PathBuf::from_str("assets").unwrap()));
+                db_helper::init_database(database.lock().unwrap());
                 Ok(Data {
-                    database: Mutex::new(open_database(PathBuf::from_str("assets").unwrap())),
+                    database: database,
                 })
             })
         })

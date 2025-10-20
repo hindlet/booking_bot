@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::MutexGuard};
 use sqlite::{Connection};
 use anyhow::{anyhow, Error};
 
@@ -16,24 +16,23 @@ pub fn open_database(path: PathBuf) -> Connection {
     sqlite::open(db_path).expect("Failed to create sqlite database")
 }
 
-pub fn init_database(db_con: Connection) {
+pub fn init_database(db_con: MutexGuard<Connection>) {
     let init_query = "
 
     CREATE TABLE IF NOT EXISTS Days (
-        id INTEGER PRIMARY KEY NOT NULL,
-        date TEXT NOT NULL,
-        UNIQUE date ON CONFLICT ABORT
+        id INTEGER PRIMARY KEY,
+        date_string TEXT NOT NULL,
+        UNIQUE (date_string) ON CONFLICT ABORT
     );
 
     CREATE TABLE IF NOT EXISTS Bookings (
-        id INTEGER PRIMARY KEY NOT NULL,
-        player_one TEXT NOT NULL,
-        player_one_id INTEGER NOT NULL,
-        player_two TEXT NOT NULL,
-        player_two_id INTEGER NOT NULL,
-        FOREIGN KEY(date_id) REFERENCES Days(id)
-        reference TEXT
-        UNIQUE(player_one_id, player_two_id, date_id) ON CONFLICT ABORT
+        id INTEGER PRIMARY KEY,
+        player_one INTEGER NOT NULL,
+        player_two INTEGER NOT NULL,
+        reference TEXT,
+        date_string TEXT NOT NULL,
+        FOREIGN KEY(date_string) REFERENCES Days(date_string),
+        UNIQUE(player_one, player_two, date_string) ON CONFLICT ABORT
     );
     ";
 

@@ -5,7 +5,7 @@ use sqlite::Connection;
 
 
 
-const ADD_DAY: &str = "INSERT INTO Days (date) VALUES (?)";
+const ADD_DAY: &str = "INSERT INTO Days (date_string) VALUES (?)";
 
 pub fn add_day(
     db_con: MutexGuard<Connection>,

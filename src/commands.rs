@@ -1,6 +1,6 @@
 use poise::serenity_prelude::UserId;
 
-use crate::{db_helper, helper::{self, strip_id}, Context, Error};
+use crate::{db_helper, helper::{self}, Context, Error};
 
 /// Show this help menu
 #[poise::command(prefix_command, track_edits, slash_command)]
@@ -44,26 +44,28 @@ pub async fn bookings(
         db_helper::booking_funcs::get_bookings(db_con, &date)
     };
 
+
     let mut response: String;
     if let Ok(bookings) = bookings_res {
         if bookings.len() == 0 {
             response = format!("There are currently no bookings for {}", date)
         } else {
             response = format!("Bookings for {}\n", date);
+            let guild_id = ctx.guild_id().unwrap();
             for (player_1, player_2, reference) in bookings {
                 let user_1 = {
                     let x = UserId::new(player_1 as u64).to_user(ctx.http()).await.unwrap();
-                    x.display_name().to_string()
+                    x.nick_in(ctx.http(), guild_id).await.unwrap().to_string()
                 };
                 let user_2 = {
                     let x = UserId::new(player_2 as u64).to_user(ctx.http()).await.unwrap();
-                    x.display_name().to_string()
+                    x.nick_in(ctx.http(), guild_id).await.unwrap().to_string()
                 };
 
                 if let Some(ref_str) = reference {
-                    response += &format!("{} and {} - {}\n", user_1, user_2, ref_str);
+                    response += &format!("- {} and {} - {}\n", user_1, user_2, ref_str);
                 } else {
-                    response += &format!("{} and {}\n", user_1, user_2);
+                    response += &format!("- {} and {}\n", user_1, user_2);
                 }
                 
             }
@@ -90,10 +92,29 @@ pub async fn book(
         return Ok(());
     }
     let date = date_res.unwrap();
+
+    {
+        let db_con = ctx.data().database.lock().unwrap();
+        let _ = db_helper::day_funcs::add_day(db_con, &date);
+    }
+
+    let booking_res = {
+        let db_con = ctx.data().database.lock().unwrap();
+        if let Some(string) = reference {
+            db_helper::booking_funcs::book_game(db_con, &date, ctx.author().id.get() as i64, helper::strip_id(&other_user).parse().unwrap(), Some(&string))
+        } else {
+            db_helper::booking_funcs::book_game(db_con, &date, ctx.author().id.get() as i64, helper::strip_id(&other_user).parse().unwrap(), None)
+        }  
+    };
+
+    let response: String;
+    if let Ok(_) = booking_res {
+        response = format!("Game booked for {}", date);
+    } else {
+        println!("{:?}", booking_res);
+        response = "Failed to book game".to_string();
+    }
     
-    println!("This user: {}", ctx.author().id);
-    println!("Other user: {}", strip_id(&other_user));
-    let response = format!("Booking for a day with <{}>", ctx.author().id);
     ctx.say(response).await?;
     Ok(())
 }
@@ -114,7 +135,20 @@ pub async fn remove_booking(
     }
     let date = date_res.unwrap();
 
-    let response = format!("Removing booking for a day with {}", other_user);
+
+    let booking_res = {
+        let db_con = ctx.data().database.lock().unwrap();
+        db_helper::booking_funcs::remove_game(db_con, &date, ctx.author().id.get() as i64, helper::strip_id(&other_user).parse().unwrap())
+    };
+
+    let response: String;
+    if let Ok(_) = booking_res {
+        response = format!("Removed booking on {}", date);
+    } else {
+        println!("{:?}", booking_res);
+        response = "Failed to remove game".to_string();
+    }
+    
     ctx.say(response).await?;
     Ok(())
 }
