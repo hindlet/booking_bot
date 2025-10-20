@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::{helper::{self, strip_id}, Context, Error};
 
 /// Show this help menu
 #[poise::command(prefix_command, track_edits, slash_command)]
@@ -20,58 +20,57 @@ pub async fn help(
     Ok(())
 }
 
-/// Vote for something
-///
-/// Enter `~vote pumpkin` to vote for pumpkins
+/// Check bookings for a given day
 #[poise::command(prefix_command, slash_command)]
-pub async fn vote(
+pub async fn bookings(
     ctx: Context<'_>,
-    #[description = "What to vote for"] choice: String,
+    #[description = "Which day would you like to check?"] day: String,
 ) -> Result<(), Error> {
+
+    let date_res = helper::process_day(&day);
+    if date_res.is_err() {
+        let response = format!("Issue with date format: {}, please try again", day);
+        ctx.say(response).await?;
+        return Ok(());
+    }
+    let date = date_res.unwrap();
+
     // Lock the Mutex in a block {} so the Mutex isn't locked across an await point
-    let num_votes = {
-        let mut hash_map = ctx.data().votes.lock().unwrap();
-        let num_votes = hash_map.entry(choice.clone()).or_default();
-        *num_votes += 1;
-        *num_votes
+    {
+        // do database stuff
+        let mut _db_con = ctx.data().database.lock().unwrap();
+
     };
 
-    let response = format!("Successfully voted for {choice}. {choice} now has {num_votes} votes!");
+    let response = format!("Checking bookings for {}", date);
     ctx.say(response).await?;
     Ok(())
 }
 
-/// Retrieve number of votes
-///
-/// Retrieve the number of votes either in general, or for a specific choice:
-/// ```
-/// ~getvotes
-/// ~getvotes pumpkin
-/// ```
-#[poise::command(prefix_command, track_edits, aliases("votes"), slash_command)]
-pub async fn getvotes(
+/// Book a game on a given day
+#[poise::command(prefix_command, slash_command)]
+pub async fn book(
     ctx: Context<'_>,
-    #[description = "Choice to retrieve votes for"] choice: Option<String>,
+    #[description = "Which day would you like to book for?"] day: String,
+    #[description = "The user you want the booking with"] other_user: String,
 ) -> Result<(), Error> {
-    if let Some(choice) = choice {
-        let num_votes = *ctx.data().votes.lock().unwrap().get(&choice).unwrap_or(&0);
-        let response = match num_votes {
-            0 => format!("Nobody has voted for {} yet", choice),
-            _ => format!("{} people have voted for {}", num_votes, choice),
-        };
-        ctx.say(response).await?;
-    } else {
-        let mut response = String::new();
-        for (choice, num_votes) in ctx.data().votes.lock().unwrap().iter() {
-            response += &format!("{}: {} votes", choice, num_votes);
-        }
+    
+    println!("This user: {}", ctx.author().id);
+    println!("Other user: {}", strip_id(&other_user));
+    let response = format!("Booking for a day with {}", other_user);
+    ctx.say(response).await?;
+    Ok(())
+}
 
-        if response.is_empty() {
-            response += "Nobody has voted for anything yet :(";
-        }
 
-        ctx.say(response).await?;
-    };
+#[poise::command(prefix_command, track_edits, aliases("removeBooking"), slash_command)]
+pub async fn remove_booking(
+    ctx: Context<'_>,
+    #[description = "Which day would you like to remove a booking for?"] day: String,
+    #[description = "The user you have the booking with"] other_user: String,
+) -> Result<(), Error> {
 
+    let response = format!("Removing booking for a day with {}", other_user);
+    ctx.say(response).await?;
     Ok(())
 }

@@ -1,14 +1,16 @@
 #![warn(clippy::str_to_string)]
 
 mod commands;
+mod db_helper;
+mod helper;
 
 use poise::serenity_prelude as serenity;
+use sqlite::Connection;
 use std::{
-    collections::HashMap,
-    env::var,
-    sync::{Arc, Mutex},
-    time::Duration,
+    collections::HashMap, env::var, path::PathBuf, str::FromStr, sync::{Arc, Mutex}, time::Duration
 };
+
+use crate::db_helper::open_database;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -16,7 +18,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 
 // Custom user data passed to all command functions
 pub struct Data {
-    votes: Mutex<HashMap<String, u32>>,
+    database: Mutex<Connection>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -43,7 +45,7 @@ async fn main() {
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
     let options = poise::FrameworkOptions {
-        commands: vec![commands::help(), commands::vote(), commands::getvotes()],
+        commands: vec![commands::help(), commands::bookings(), commands::book(), commands::remove_booking()],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),
             edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
@@ -99,15 +101,14 @@ async fn main() {
                 println!("Logged in as {}", _ready.user.name);
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
-                    votes: Mutex::new(HashMap::new()),
+                    database: Mutex::new(open_database(PathBuf::from_str("assets").unwrap())),
                 })
             })
         })
         .options(options)
         .build();
 
-    let token = var("DISCORD_TOKEN")
-        .expect("Missing `DISCORD_TOKEN` env var, see README for more information.");
+    let token = helper::read_token_file("token.txt");
     let intents =
         serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
 
