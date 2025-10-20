@@ -108,7 +108,7 @@ async fn main() {
         .options(options)
         .build();
 
-    let token = helper::read_token_file("token.txt");
+    let token = helper::read_token_file("assets/token.txt");
     let intents =
         serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
 
