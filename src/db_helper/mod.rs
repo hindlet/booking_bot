@@ -1,6 +1,9 @@
 use std::path::PathBuf;
+use sqlite::{Connection};
+use anyhow::{anyhow, Error};
 
-use sqlite::Connection;
+pub mod day_funcs;
+pub mod booking_funcs;
 
 
 
@@ -18,16 +21,19 @@ pub fn init_database(db_con: Connection) {
 
     CREATE TABLE IF NOT EXISTS Days (
         id INTEGER PRIMARY KEY NOT NULL,
-        description TEXT NOT NULL,
+        date TEXT NOT NULL,
+        UNIQUE date ON CONFLICT ABORT
     );
 
     CREATE TABLE IF NOT EXISTS Bookings (
         id INTEGER PRIMARY KEY NOT NULL,
         player_one TEXT NOT NULL,
+        player_one_id INTEGER NOT NULL,
         player_two TEXT NOT NULL,
-        FOREIGN KEY(day_id) REFERENCES Days(id)
+        player_two_id INTEGER NOT NULL,
+        FOREIGN KEY(date_id) REFERENCES Days(id)
         reference TEXT
-        UNIQUE(player_one_id, player_two_id, day_id) ON CONFLICT ABORT
+        UNIQUE(player_one_id, player_two_id, date_id) ON CONFLICT ABORT
     );
     ";
 
@@ -36,8 +42,5 @@ pub fn init_database(db_con: Connection) {
         .expect("Database Initialised");
 }
 
-pub fn add_day(
 
-) {
 
-}
