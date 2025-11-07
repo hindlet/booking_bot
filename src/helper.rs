@@ -12,15 +12,19 @@ pub fn read_token_file(path: &str) -> String {
     token
 }
 
-pub fn strip_id(id: &str) -> String {
-    let mut res = id.strip_prefix("<@").unwrap();
-    res = res.strip_suffix(">").unwrap();
-    res.to_string()
+pub fn parse_id(id: &str) -> Option<String> {
+    if let Some(no_pref) = id.strip_prefix("<@") {
+        if let Some(no_suf) = no_pref.strip_suffix(">") {
+            return Some(no_suf.to_string());
+        }
+    }
+    return None;
 }
 
 #[derive(Debug)]
 pub struct DateError;
 
+/// matches dd/mm, d/m, y/m/d
 fn match_date(string: &str, year: i32) -> Option<String> {
     let dm = Regex::new(r"^(?<day>\d{1,2})(-)(?<month>\d{1,2})$").unwrap();
     if let Some(caps) = dm.captures(string) {

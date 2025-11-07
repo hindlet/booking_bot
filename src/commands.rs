@@ -14,7 +14,7 @@ pub async fn help(
         ctx,
         command.as_deref(),
         poise::builtins::HelpConfiguration {
-            extra_text_at_bottom: "This is an example bot made to showcase features of my custom Discord bot framework",
+            extra_text_at_bottom: "Dates can be given in the forms y/m/d or d/m, or you may give a weekday, such as \"Thursday\" or \"Mon\"",
             ..Default::default()
         },
     )
@@ -55,11 +55,19 @@ pub async fn bookings(
             for (player_1, player_2, reference) in bookings {
                 let user_1 = {
                     let x = UserId::new(player_1 as u64).to_user(ctx.http()).await.unwrap();
-                    x.nick_in(ctx.http(), guild_id).await.unwrap().to_string()
+                    if let Some(name) = x.nick_in(ctx.http(), guild_id).await {
+                        name.to_string()
+                    } else {
+                        x.name
+                    }
                 };
                 let user_2 = {
                     let x = UserId::new(player_2 as u64).to_user(ctx.http()).await.unwrap();
-                    x.nick_in(ctx.http(), guild_id).await.unwrap().to_string()
+                    if let Some(name) = x.nick_in(ctx.http(), guild_id).await {
+                        name.to_string()
+                    } else {
+                        x.name
+                    }
                 };
 
                 if let Some(ref_str) = reference {
@@ -76,7 +84,7 @@ pub async fn bookings(
     Ok(())
 }
 
-/// Book a game on a given day
+/// Book a game on a given day, @ another user and provide an optional reference, such as "crusade"
 #[poise::command(prefix_command, slash_command)]
 pub async fn book(
     ctx: Context<'_>,
@@ -98,12 +106,19 @@ pub async fn book(
         let _ = db_helper::day_funcs::add_day(db_con, &date);
     }
 
+    let other_id = helper::parse_id(&other_user);
+    if other_id.is_none() {
+        let response = format!("Could not parse other user id, please try again or contact admin");
+        ctx.say(response).await?;
+        return Ok(());
+    }
+
     let booking_res = {
         let db_con = ctx.data().database.lock().unwrap();
         if let Some(string) = reference {
-            db_helper::booking_funcs::book_game(db_con, &date, ctx.author().id.get() as i64, helper::strip_id(&other_user).parse().unwrap(), Some(&string))
+            db_helper::booking_funcs::book_game(db_con, &date, ctx.author().id.get() as i64, other_id.unwrap().parse().unwrap(), Some(&string))
         } else {
-            db_helper::booking_funcs::book_game(db_con, &date, ctx.author().id.get() as i64, helper::strip_id(&other_user).parse().unwrap(), None)
+            db_helper::booking_funcs::book_game(db_con, &date, ctx.author().id.get() as i64, other_id.unwrap().parse().unwrap(), None)
         }  
     };
 
@@ -119,7 +134,7 @@ pub async fn book(
     Ok(())
 }
 
-
+/// remove a booking for a given day with another user, YOU CAN ONLY DO THIS IF YOU MADE THE BOOKING
 #[poise::command(prefix_command, track_edits, aliases("removeBooking"), slash_command)]
 pub async fn remove_booking(
     ctx: Context<'_>,
@@ -135,10 +150,16 @@ pub async fn remove_booking(
     }
     let date = date_res.unwrap();
 
+    let other_id = helper::parse_id(&other_user);
+    if other_id.is_none() {
+        let response = format!("Could not parse other user id, please try again or contact admin");
+        ctx.say(response).await?;
+        return Ok(());
+    }
 
     let booking_res = {
         let db_con = ctx.data().database.lock().unwrap();
-        db_helper::booking_funcs::remove_game(db_con, &date, ctx.author().id.get() as i64, helper::strip_id(&other_user).parse().unwrap())
+        db_helper::booking_funcs::remove_game(db_con, &date, ctx.author().id.get() as i64, other_id.unwrap().parse().unwrap())
     };
 
     let response: String;
