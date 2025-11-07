@@ -1,6 +1,5 @@
 use std::{path::PathBuf, sync::MutexGuard};
 use sqlite::{Connection};
-use anyhow::{anyhow, Error};
 
 pub mod day_funcs;
 pub mod booking_funcs;
